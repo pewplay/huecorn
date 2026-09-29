@@ -1,0 +1,1461 @@
+// level.js - level layouts, colour pickups, hazards, and exits
+// space = empty, 1 = ground, r/o/y/g/i = colour platforms
+// C/O/Y/G/B/I/V = colour crystals, u/v/</> = portals, D = door, ^ = spikes
+var LEVEL_COMPLETE_DELAY = 1;
+var INDIGO_CRUMBLE_DELAY = 0.3;
+var INDIGO_RESPAWN_DELAY = 1.5;
+var VIOLET_EXPLOSION_TIME = 10;
+var COLOR_INFO = {
+  red: { tileId: 2, color: "#ff304f", highlight: "#ffb3bf" },
+  orange: { tileId: 4, color: "#e66a19", highlight: "#ffc08a" },
+  yellow: { tileId: 5, color: "#ffd43b", highlight: "#fff3a3", disappears: true },
+  green: { tileId: 6, color: "#34c759", highlight: "#a8f0b8", bounces: true },
+  blue: { color: "#0a84ff", highlight: "#8dc8ff" },
+  indigo: { tileId: 7, color: "#5856d6", highlight: "#b8b7ff", crumbles: true },
+  violet: { color: "#af52de", highlight: "#e4b5fa" },
+};
+
+// Build fixed-width rows from compact [row, column, tiles] placements. Keeping
+// coordinates beside each feature makes the routes easier to tune than long,
+// space-padded strings.
+function makeLevelRows(width, height, placements) {
+  var rows = [];
+  for (var row = 0; row < height; row++) rows.push(" ".repeat(width));
+  for (var i = 0; i < placements.length; i++) {
+    var placement = placements[i];
+    var source = rows[placement[0]];
+    rows[placement[0]] =
+      source.slice(0, placement[1]) +
+      placement[2] +
+      source.slice(placement[1] + placement[2].length);
+  }
+  return rows;
+}
+
+var Level = {
+  levels: [
+    {// 1
+      colors: ["red"],
+      rows: makeLevelRows(23, 9, [
+        [2, 21, "D"],
+        [3, 5, "C"],
+        [4, 19, "1111"],
+        [5, 18, "11111"],
+        [6, 4, "111rrrrrrrrrr111111"],
+        [7, 0, "1111111"],
+        [7, 17, "111111"],
+        [8, 0, "1111111^^^^^^^^^^111111"],
+      ]),
+    },
+    { // 2
+      colors: ["red","orange"],
+      platformRange: 11,
+      platformSpeed: 80,
+      platformAxis: "x",
+      rows: makeLevelRows(28, 16, [
+        [0, 12, "1"],
+        [1, 11, "O1"],
+        [2, 10, "rr1"],
+        [5, 7, "rr"],
+        [7, 26, "D"],
+        [8, 0, "1111"],
+        [9, 0, "1111rr"],
+        [9, 25, "111"],
+        [10, 0, "1"],
+        [11, 0, "1 C"],
+        [11, 11, "M"],
+        [12, 0, "1"],
+        [12, 7, "111"],
+        [13, 0, "1"],
+        [14, 0, "1111111"],
+        [15, 0, "1111111^^^^^^^^^^^^^^^^^^^^^"],
+      ]),
+    },
+    { // 3
+      colors: ["red","orange","yellow"],
+      platformRange: 5,
+      platformSpeed: 80,
+      platformAxis: "y",
+      rows: makeLevelRows(31, 16, [
+        [2, 6, "C"],
+        [4, 29, "O"],
+        [5, 0, "1111    rrr    rrr"],
+        [5, 27, "1111"],
+        [6, 0, "1111"],
+        [6, 27, "1111"],
+        [7, 0, "1111^^^^^^^^^^^^^^^^^^1     111"],
+        [8, 0, "11111111111111111111111"],
+        [8, 29, "11"],
+        [9, 0, "11"],
+        [9, 9, "y"],
+        [10, 0, "1"],
+        [10, 9, "y"],
+        [11, 0, "1"],
+        [11, 9, "y Y"],
+        [12, 0, "1 D"],
+        [12, 9, "y"],
+        [13, 0, "1"],
+        [13, 9, "y"],
+        [13, 24, "M"],
+        [14, 0, "11111    y  1111"],
+        [15, 0, "1111^^^^^^^^^^^^^^^^^^^^^^^^^^^"],
+      ]),
+    },
+    { // 4
+      colors: ["red","orange","yellow","green"],
+      platformRange: 5,
+      platformSpeed: 70,
+      platformAxis: "y",
+      rows: makeLevelRows(45, 18, [
+        [0, 9, "1"],
+        [0, 18, "1111"],
+        [1, 9, "1"],
+        [1, 18, "111"],
+        [2, 9, "1    O   11"],
+        [3, 4, "1111 1  1111  11"],
+        [4, 0, "11111111 1  1     11"],
+        [5, 9, "1  1     11"],
+        [6, 9, "1  1     11"],
+        [6, 43, "D"],
+        [7, 9, "1  r     11"],
+        [8, 6, "C  1  r     1"],
+        [8, 41, "1111"],
+        [9, 12, "r111M 1"],
+        [9, 41, "1111"],
+        [10, 12, "r     y"],
+        [10, 41, "1111"],
+        [11, 12, "r     y"],
+        [11, 41, "1111"],
+        [12, 0, "11"],
+        [12, 12, "r     y"],
+        [12, 41, "1111"],
+        [13, 11, "r"],
+        [13, 18, "yG"],
+        [13, 41, "1111"],
+        [14, 3, "1111 rrr     1111ggg"],
+        [14, 38, "ggg1111"],
+        [15, 13, "Y"],
+        [16, 12, "1111"],
+        [17, 0, "^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"],
+      ]),
+    },
+{ // 5
+  colors: ["red","orange","yellow","green","blue"],
+  platformRange: 9,
+  platformSpeed: 70,
+  platformAxis: "x",
+  rows: makeLevelRows(32, 32, [
+    [0, 14, "11111    1111  v"],
+    [1, 15, "111"],
+    [1, 24, "111"],
+    [2, 15, "111"],
+    [2, 25, "11"],
+    [3, 12, "C  111"],
+    [3, 25, "11"],
+    [4, 0, "11111"],
+    [4, 11, "111111"],
+    [4, 25, "11  111"],
+    [5, 0, "11111"],
+    [5, 11, "1111"],
+    [5, 25, "11"],
+    [6, 0, "1111"],
+    [6, 12, "11"],
+    [6, 22, ">  11   D"],
+    [7, 0, "111"],
+    [7, 13, "1"],
+    [7, 25, "11"],
+    [8, 0, "11"],
+    [8, 13, "1     B     11^1111"],
+    [9, 0, "1"],
+    [9, 7, "O     1    111"],
+    [10, 13, "1"],
+    [11, 13, "1"],
+    [12, 13, "111"],
+    [13, 13, "111"],
+    [14, 13, "11"],
+    [15, 12, "^1   rr"],
+    [16, 10, "^^11"],
+    [17, 10, "111"],
+    [17, 21, "rr"],
+    [18, 3, "^^^"],
+    [19, 3, "111"],
+    [19, 25, "11"],
+    [20, 25, "111yyy1"],
+    [21, 26, "11   1"],
+    [22, 29, "Y"],
+    [28, 0, "^"],
+    [28, 19, "G"],
+    [29, 0, "1^"],
+    [29, 12, "^  M"],
+    [29, 28, "gggg"],
+    [30, 0, "11^ oooooo ^1^"],
+    [30, 28, "1111"],
+    [31, 0, "111^^^^^^^^111^^^^^^^^^^^^^^1111"],
+  ]),
+},
+{ // 6
+  colors: ["red","orange","yellow","green","blue","indigo"],
+  platformRange: 6,
+  platformSpeed: 70,
+  platformAxis: "x",
+  rows: makeLevelRows(47, 39, [
+    [0, 33, "1"],
+    [1, 33, "1"],
+    [2, 33, "1 Y"],
+    [3, 12, "C"],
+    [3, 33, "1111"],
+    [4, 0, "1111"],
+    [4, 12, "11   rr"],
+    [4, 27, "rr    111"],
+    [5, 0, "1111^^^^^^^^11"],
+    [5, 33, "11"],
+    [5, 42, "111"],
+    [6, 0, "11111111111111^^^^^^^^^^^^^^^^^1 1"],
+    [7, 0, "1 v"],
+    [7, 12, "11111111111111111111 1"],
+    [8, 12, "1"],
+    [8, 31, "1   M"],
+    [9, 12, "1"],
+    [9, 31, "1"],
+    [10, 12, "1 <"],
+    [10, 31, "1   111"],
+    [11, 12, "1"],
+    [11, 25, "1     1O"],
+    [12, 12, "1"],
+    [12, 20, "B    1     1"],
+    [13, 12, "1^^^^^1111^  1     1M"],
+    [14, 12, "11111111111111     1^^^"],
+    [14, 42, "^^^^^"],
+    [15, 18, "11111111    ^1111yyyyyyy11111"],
+    [16, 18, "1"],
+    [16, 28, "1111"],
+    [17, 0, "^ggg"],
+    [17, 18, "1"],
+    [18, 0, "1111"],
+    [18, 18, "1"],
+    [18, 38, "111"],
+    [19, 18, "1"],
+    [20, 18, "1"],
+    [20, 45, "G"],
+    [21, 18, "1"],
+    [21, 25, "ggg"],
+    [21, 44, "111"],
+    [22, 18, "1"],
+    [22, 25, "111"],
+    [23, 4, "1111"],
+    [23, 18, "1"],
+    [24, 18, "1"],
+    [24, 42, "111"],
+    [25, 18, "1"],
+    [26, 18, "1^"],
+    [27, 2, "I"],
+    [27, 18, "11"],
+    [28, 0, "^111"],
+    [28, 18, "11^"],
+    [28, 29, "ggg"],
+    [28, 40, "ggg"],
+    [29, 0, "1111"],
+    [29, 19, "11^^^^^^^^111^^^^^^^^111^^^^"],
+    [30, 0, "1111"],
+    [30, 20, "111111111111111111111111111"],
+    [31, 0, "1111"],
+    [32, 0, "1111"],
+    [33, 0, "1111^11"],
+    [34, 0, "1111111"],
+    [34, 45, "D"],
+    [35, 0, "1111111"],
+    [35, 27, "111"],
+    [36, 0, "1111111iiiiiii"],
+    [36, 20, "iiiiiii111  ii"],
+    [36, 40, "ii  111"],
+    [37, 0, "1111111"],
+    [37, 14, "^^^^^^"],
+    [37, 27, "111"],
+    [37, 44, "111"],
+    [38, 0, "1111111^^^^^^^111111^^^^^^^111^^^^^^^^^^^^^^111"],
+  ]),
+},
+{
+  colors: ["red","orange","yellow","green","blue","indigo","violet"],
+  platformRange: 3,
+  platformSpeed: 70,
+  platformAxis: "x",
+  rows: makeLevelRows(47, 39, [
+    [0, 11, "1"],
+    [0, 43, "1111"],
+    [1, 3, "1111    1"],
+    [1, 18, "C"],
+    [1, 45, "11"],
+    [2, 11, "1"],
+    [2, 46, "1"],
+    [3, 9, "^ 1"],
+    [3, 46, "1"],
+    [4, 0, "1"],
+    [4, 8, "^1 11  ^^rrrrrr11"],
+    [4, 43, "O  1"],
+    [5, 0, "11"],
+    [5, 8, "11 11  11^^^^^^11"],
+    [5, 46, "1"],
+    [6, 0, "1111111111 11  1111111111"],
+    [6, 46, "1"],
+    [7, 0, "1"],
+    [7, 8, "11 11  11  y    1^^^^^^^^^^^^^11"],
+    [8, 0, "1"],
+    [8, 8, "11 11  11 Gy"],
+    [8, 38, "11"],
+    [9, 0, "1"],
+    [9, 8, "11     1111y"],
+    [9, 38, "11^^M ^^^"],
+    [10, 0, "1"],
+    [10, 8, "11     11"],
+    [10, 38, "1111  111"],
+    [11, 0, "1    D  11     11   111"],
+    [12, 0, "1"],
+    [12, 8, "111^^1111"],
+    [12, 37, "Y"],
+    [13, 0, "1  11111111111111"],
+    [13, 25, "111"],
+    [14, 0, "1"],
+    [14, 14, "111"],
+    [15, 0, "1"],
+    [15, 15, "11"],
+    [15, 31, "111yyyyyyy1 111"],
+    [16, 0, "1"],
+    [16, 15, "11^^^^^^^^^^^^^^111"],
+    [16, 41, "1"],
+    [17, 0, "1     111"],
+    [17, 16, "111111111111111111"],
+    [17, 41, "1"],
+    [18, 0, "1gg   1111"],
+    [18, 17, "1"],
+    [18, 41, "1"],
+    [19, 0, "1     111111     1"],
+    [19, 41, "1^^^^^"],
+    [20, 0, "1     111111111  1"],
+    [20, 32, "11"],
+    [20, 41, "11 v"],
+    [21, 0, "1     111"],
+    [21, 17, "1    1"],
+    [21, 33, "1"],
+    [21, 41, "11"],
+    [22, 0, "1     111"],
+    [22, 17, "1 v  1 B   11   1"],
+    [22, 41, "11"],
+    [23, 0, "1   gg111  1iiiii1    1"],
+    [23, 33, "1"],
+    [23, 41, "11"],
+    [24, 0, "1     1    1     1    1"],
+    [24, 33, "1"],
+    [24, 41, "1"],
+    [25, 0, "1     1    1     1    11111^^^^^^1ggggggg1"],
+    [26, 0, "1     1    1     1^^^^111111111111^^^^^^^1^   ^"],
+    [27, 0, "1     1    1     111111"],
+    [27, 33, "1111111111   1"],
+    [28, 0, "1     111  1"],
+    [29, 0, "1"],
+    [29, 8, "1  1"],
+    [30, 0, "1gg     1  1"],
+    [31, 0, "1"],
+    [31, 8, "1"],
+    [31, 17, "I"],
+    [32, 0, "1     V 1"],
+    [33, 0, "1    iii1iiiiiiiiiii"],
+    [34, 0, "1"],
+    [34, 8, "1"],
+    [35, 0, "1"],
+    [35, 8, "1"],
+    [36, 0, "1"],
+    [36, 8, "1"],
+    [37, 0, "1"],
+    [37, 8, "1"],
+    [37, 16, "111"],
+    [38, 0, "1ggggggg1^^^^^^^111^^^^^gggg^^^^^^^^^^^^^^ggggg"],
+  ]),
+},
+  ],
+  currentIndex: 0,
+  runTimer: 0,
+  deathCount: 0,
+
+  init: function (levelIndex) {
+    if (levelIndex !== undefined) Level.currentIndex = levelIndex;
+    var definition = Level.levels[Level.currentIndex];
+    var rows = definition.rows;
+
+    Level.rows = rows.length;
+    Level.cols = 0;
+    Level.requiredColors = definition.colors;
+    Level.redUnlocked = false;
+    Level.orangeUnlocked = false;
+    Level.yellowUnlocked = false;
+    Level.greenUnlocked = false;
+    Level.blueUnlocked = false;
+    Level.indigoUnlocked = false;
+    Level.violetUnlocked = false;
+    Level.violetTimer = 0;
+    Level.crystals = [];
+    Level.hoofprints = [];
+    Level.movingPlatforms = [];
+    Level.portals = [];
+    Level.indigoTiles = [];
+    Level.indigoTileStates = {};
+    Level.portalCooldown = 0;
+    Level.door = null;
+    Level.complete = false;
+    Level.completeTimer = 0;
+    Level.gameComplete = false;
+    Level.failed = false;
+    Level.failureMessage = "YOU FELL - RESTARTING";
+    Level.restartTimer = 0;
+    Level.time = 0;
+
+    for (var i = 0; i < rows.length; i++) {
+      Level.cols = Math.max(Level.cols, rows[i].length);
+    }
+
+    Level.map = rows.map(function (row, rowIndex) {
+      var cells = row.split("");
+      while (cells.length < Level.cols) cells.push(" ");
+      return cells.map(function (c, colIndex) {
+        var crystalColor =
+          c === "C"
+            ? "red"
+            : c === "O"
+              ? "orange"
+            : c === "Y"
+              ? "yellow"
+              : c === "G"
+                ? "green"
+                : c === "B"
+                  ? "blue"
+                  : c === "I"
+                    ? "indigo"
+                    : c === "V"
+                      ? "violet"
+                      : null;
+        if (crystalColor) {
+          Level.crystals.push({
+            color: crystalColor,
+            x: colIndex * TILE_SIZE + 7,
+            y: rowIndex * TILE_SIZE + 5,
+            w: 18,
+            h: 22,
+          });
+        }
+        if (c === "D") {
+          Level.door = {
+            x: colIndex * TILE_SIZE + 4,
+            y: rowIndex * TILE_SIZE,
+            w: 24,
+            h: TILE_SIZE * 2,
+          };
+        }
+        if (c === "M") {
+          Level.movingPlatforms.push({
+            x: colIndex * TILE_SIZE,
+            y: rowIndex * TILE_SIZE,
+            startX: colIndex * TILE_SIZE,
+            startY: rowIndex * TILE_SIZE,
+            w: TILE_SIZE * 2,
+            h: TILE_SIZE / 2,
+            axis: definition.platformAxis || "x",
+            range:
+              TILE_SIZE *
+              (definition.platformRange === undefined
+                ? 4
+                : definition.platformRange),
+            speed:
+              definition.platformSpeed === undefined
+                ? 80
+                : definition.platformSpeed,
+            offset: 0,
+            direction: 1,
+            dx: 0,
+            dy: 0,
+          });
+        }
+        var portalDirection =
+          c === "u"
+            ? { x: 0, y: -1 }
+            : c === "v"
+              ? { x: 0, y: 1 }
+              : c === "<"
+                ? { x: -1, y: 0 }
+                : c === ">"
+                  ? { x: 1, y: 0 }
+                  : null;
+        if (portalDirection) {
+          Level.portals.push({
+            pair: Math.floor(Level.portals.length / 2),
+            x: colIndex * TILE_SIZE + 4,
+            y: rowIndex * TILE_SIZE + 4,
+            w: TILE_SIZE - 8,
+            h: TILE_SIZE - 8,
+            nx: portalDirection.x,
+            ny: portalDirection.y,
+          });
+        }
+        if (c === "1") return 1;
+        if (c === "r") return COLOR_INFO.red.tileId;
+        if (c === "^") return 3;
+        if (c === "o") return COLOR_INFO.orange.tileId;
+        if (c === "y") return COLOR_INFO.yellow.tileId;
+        if (c === "g") return COLOR_INFO.green.tileId;
+        if (c === "i") {
+          var indigoTile = {
+            col: colIndex,
+            row: rowIndex,
+            phase: 0,
+            timer: 0,
+          };
+          Level.indigoTiles.push(indigoTile);
+          Level.indigoTileStates[rowIndex * Level.cols + colIndex] = indigoTile;
+          return COLOR_INFO.indigo.tileId;
+        }
+        return 0;
+      });
+    });
+  },
+
+  widthPx: function () {
+    return Level.cols * TILE_SIZE;
+  },
+
+  heightPx: function () {
+    return Level.rows * TILE_SIZE;
+  },
+
+  tileAt: function (col, row) {
+    if (row < 0 || row >= Level.rows || col < 0 || col >= Level.cols) return 1;
+    var tileId = Level.map[row][col];
+    if (tileId === COLOR_INFO.indigo.tileId) {
+      var state = Level.indigoTileStates[row * Level.cols + col];
+      if (state && state.phase === 2) return 0;
+    }
+    return tileId;
+  },
+
+  baseTileAt: function (col, row) {
+    if (row < 0 || row >= Level.rows || col < 0 || col >= Level.cols) return 1;
+    return Level.map[row][col];
+  },
+
+  isColorUnlocked: function (color) {
+    if (color === "red") return Level.redUnlocked;
+    if (color === "orange") return Level.orangeUnlocked;
+    if (color === "yellow") return Level.yellowUnlocked;
+    if (color === "green") return Level.greenUnlocked;
+    if (color === "blue") return Level.blueUnlocked;
+    if (color === "indigo") return Level.indigoUnlocked;
+    if (color === "violet") return Level.violetUnlocked;
+    return false;
+  },
+
+  unlockColor: function (color) {
+    if (color === "red") Level.redUnlocked = true;
+    if (color === "orange") Level.orangeUnlocked = true;
+    if (color === "yellow") Level.yellowUnlocked = true;
+    if (color === "green") Level.greenUnlocked = true;
+    if (color === "blue") Level.blueUnlocked = true;
+    if (color === "indigo") Level.indigoUnlocked = true;
+    if (color === "violet") Level.violetUnlocked = true;
+  },
+
+  updateIndigoTiles: function (hero, dt) {
+    if (!Level.indigoUnlocked) return;
+
+    for (var i = 0; i < Level.indigoTiles.length; i++) {
+      var tile = Level.indigoTiles[i];
+      if (tile.phase === 0) continue;
+
+      tile.timer -= dt;
+      if (tile.timer > 0) continue;
+
+      if (tile.phase === 1) {
+        tile.phase = 2;
+        tile.timer = INDIGO_RESPAWN_DELAY;
+      } else {
+        var tileRect = {
+          x: tile.col * TILE_SIZE,
+          y: tile.row * TILE_SIZE,
+          w: TILE_SIZE,
+          h: TILE_SIZE,
+        };
+        if (!rectsOverlap(hero, tileRect)) {
+          tile.phase = 0;
+          tile.timer = 0;
+        }
+      }
+    }
+
+    if (!hero.onGround) return;
+    var row = Math.floor((hero.y + hero.h + TILE_EPSILON) / TILE_SIZE);
+    var col0 = Math.floor(hero.x / TILE_SIZE);
+    var col1 = Math.floor((hero.x + hero.w - TILE_EPSILON) / TILE_SIZE);
+    for (var col = col0; col <= col1; col++) {
+      if (Level.baseTileAt(col, row) !== COLOR_INFO.indigo.tileId) continue;
+      var state = Level.indigoTileStates[row * Level.cols + col];
+      if (state && state.phase === 0) {
+        state.phase = 1;
+        state.timer = INDIGO_CRUMBLE_DELAY;
+      }
+    }
+  },
+
+  isOnGreenBounce: function (entity) {
+    if (!Level.greenUnlocked) return false;
+    var row = Math.floor((entity.y + entity.h + TILE_EPSILON) / TILE_SIZE);
+    var col0 = Math.floor(entity.x / TILE_SIZE);
+    var col1 = Math.floor((entity.x + entity.w - TILE_EPSILON) / TILE_SIZE);
+    for (var col = col0; col <= col1; col++) {
+      if (Level.tileAt(col, row) === COLOR_INFO.green.tileId) return true;
+    }
+    return false;
+  },
+
+  updatePortals: function (hero, dt, entryVx, entryVy) {
+    Level.portalCooldown = Math.max(0, Level.portalCooldown - dt);
+    if (!Level.blueUnlocked || Level.portalCooldown > 0) return false;
+
+    for (var i = 0; i < Level.portals.length; i++) {
+      var source = Level.portals[i];
+      if (!rectsOverlap(hero, source)) continue;
+
+      var target = null;
+      for (var j = 0; j < Level.portals.length; j++) {
+        if (i !== j && Level.portals[j].pair === source.pair) {
+          target = Level.portals[j];
+          break;
+        }
+      }
+      if (!target) return false;
+
+      var speed = Math.max(Math.sqrt(entryVx * entryVx + entryVy * entryVy), 360);
+      Particles.portal(
+        source.x + source.w / 2,
+        source.y + source.h / 2
+      );
+      hero.x =
+        target.x +
+        target.w / 2 -
+        hero.w / 2 +
+        target.nx * (target.w / 2 + hero.w / 2 + 4);
+      hero.y =
+        target.y +
+        target.h / 2 -
+        hero.h / 2 +
+        target.ny * (target.h / 2 + hero.h / 2 + 4);
+      hero.vx = target.nx * speed;
+      hero.vy = target.ny * speed;
+      hero.onGround = false;
+      hero.touchingWallLeft = false;
+      hero.touchingWallRight = false;
+      hero.groundCoyote = 0;
+      Level.portalCooldown = 0.3;
+      Particles.portal(
+        target.x + target.w / 2,
+        target.y + target.h / 2
+      );
+      Sound.play("portal");
+      camera.shake(4, 0.18);
+      return true;
+    }
+    return false;
+  },
+
+  hasRequiredColors: function () {
+    for (var i = 0; i < Level.requiredColors.length; i++) {
+      if (!Level.isColorUnlocked(Level.requiredColors[i])) return false;
+    }
+    return true;
+  },
+
+  updateMovingPlatforms: function (hero, dt) {
+    for (var i = 0; i < Level.movingPlatforms.length; i++) {
+      var platform = Level.movingPlatforms[i];
+      platform.dx = 0;
+      platform.dy = 0;
+      if (!Level.orangeUnlocked) continue;
+
+      var wasStanding =
+        hero.onGround &&
+        Math.abs(hero.y + hero.h - platform.y) <= 2 &&
+        hero.x + hero.w > platform.x &&
+        hero.x < platform.x + platform.w;
+      var oldX = platform.x;
+      var oldY = platform.y;
+      platform.offset += platform.direction * platform.speed * dt;
+      if (platform.offset >= platform.range) {
+        platform.offset = platform.range;
+        platform.direction = -1;
+      } else if (platform.offset <= 0) {
+        platform.offset = 0;
+        platform.direction = 1;
+      }
+      if (platform.axis === "x") platform.x = platform.startX + platform.offset;
+      else platform.y = platform.startY - platform.offset;
+      platform.dx = platform.x - oldX;
+      platform.dy = platform.y - oldY;
+
+      if (wasStanding) {
+        hero.moveByPlatform(platform.dx, platform.dy);
+      }
+    }
+  },
+
+  resolveMovingPlatforms: function (hero, previousBottom) {
+    for (var i = 0; i < Level.movingPlatforms.length; i++) {
+      var platform = Level.movingPlatforms[i];
+      var overlapsX =
+        hero.x + hero.w > platform.x && hero.x < platform.x + platform.w;
+      var crossesTop =
+        previousBottom <= platform.y + 4 && hero.y + hero.h >= platform.y;
+      if (hero.vy >= 0 && overlapsX && crossesTop) {
+        hero.y = platform.y - hero.h;
+        hero.vy = 0;
+        hero.onGround = true;
+        return;
+      }
+    }
+  },
+
+  touchesHazard: function (entity) {
+    var col0 = Math.max(0, Math.floor(entity.x / TILE_SIZE));
+    var col1 = Math.min(
+      Level.cols - 1,
+      Math.floor((entity.x + entity.w - TILE_EPSILON) / TILE_SIZE)
+    );
+    var row0 = Math.max(0, Math.floor(entity.y / TILE_SIZE));
+    var row1 = Math.min(
+      Level.rows - 1,
+      Math.floor((entity.y + entity.h - TILE_EPSILON) / TILE_SIZE)
+    );
+
+    for (var row = row0; row <= row1; row++) {
+      for (var col = col0; col <= col1; col++) {
+        if (Level.tileAt(col, row) !== 3) continue;
+        var spikeHitbox = {
+          x: col * TILE_SIZE,
+          y: row * TILE_SIZE + 4,
+          w: TILE_SIZE,
+          h: TILE_SIZE - 4,
+        };
+        if (rectsOverlap(entity, spikeHitbox)) return true;
+      }
+    }
+    return false;
+  },
+
+  update: function (hero, dt) {
+    Level.time += dt;
+    if (!Level.complete && !Level.gameComplete) Level.runTimer += dt;
+
+    if (Level.failed) {
+      Level.restartTimer -= dt;
+      if (Level.restartTimer <= 0) Level.resetLevel(hero, Level.currentIndex);
+      return;
+    }
+
+    if (Level.complete) {
+      if (Level.gameComplete) return;
+      Level.completeTimer -= dt;
+      if (Level.completeTimer <= 0) {
+        if (Level.currentIndex + 1 < Level.levels.length) {
+          Level.resetLevel(hero, Level.currentIndex + 1);
+        } else {
+          Level.gameComplete = true;
+          if (!bestRun || Level.runTimer < bestRun[0]) {
+            bestRun = [Level.runTimer, Level.deathCount];
+            try {
+              localStorage.setItem(BEST_RUN_KEY, JSON.stringify(bestRun));
+            } catch (e) {}
+          }
+          titleScreen = true;
+          titleTime = 0;
+          titleBurstTimer = 0;
+          document.body.classList.add("title-screen");
+        }
+      }
+      return;
+    }
+
+    if (Level.violetUnlocked) {
+      Level.violetTimer -= dt;
+      if (Level.violetTimer <= 0) {
+        Level.violetTimer = 0;
+        Level.fail(hero, "rainbow", "BOOM - RESTARTING");
+        return;
+      }
+    }
+
+    if (Level.touchesHazard(hero)) {
+      Level.fail(hero, COLOR_INFO.red.color);
+      return;
+    }
+
+    for (var i = 0; i < Level.crystals.length; i++) {
+      var crystal = Level.crystals[i];
+      if (Level.isColorUnlocked(crystal.color) || !rectsOverlap(hero, crystal)) continue;
+      Level.collectCrystal(crystal);
+    }
+
+    Level.updateIndigoTiles(hero, dt);
+
+    if (Level.hasRequiredColors() && rectsOverlap(hero, Level.door)) {
+      Level.complete = true;
+      Level.completeTimer = LEVEL_COMPLETE_DELAY;
+      hero.vx = 0;
+      hero.vy = 0;
+      Sound.play("complete");
+      Particles.titleBurst(Level.door.x + Level.door.w / 2, Level.door.y + Level.door.h / 2, 2);
+      camera.shake(5, 0.25);
+    }
+  },
+
+  collectCrystal: function (crystal) {
+    var info = COLOR_INFO[crystal.color];
+    Level.unlockColor(crystal.color);
+    if (Level.hasRequiredColors()) {
+      Particles.titleBurst(Level.door.x + Level.door.w / 2, Level.door.y + Level.door.h / 2);
+    }
+    Sound.play("crystal");
+    if (crystal.color === "violet") Level.violetTimer = VIOLET_EXPLOSION_TIME;
+    camera.shake(7, 0.35);
+    for (var i = 0; i < 18; i++) {
+      var angle = (i / 18) * Math.PI * 2;
+      Particles.add(
+        crystal.x + crystal.w / 2,
+        crystal.y + crystal.h / 2,
+        Math.cos(angle) * (80 + Math.random() * 90),
+        Math.sin(angle) * (80 + Math.random() * 90) - 40,
+        0.45 + Math.random() * 0.3,
+        3 + Math.random() * 3,
+        info.color
+      );
+    }
+  },
+
+  fail: function (hero, color, message) {
+    if (Level.failed || Level.complete) return;
+    var rainbowExplosion = color === "rainbow";
+    Level.deathCount++;
+    Level.failed = true;
+    Level.failureMessage = message || "YOU FELL - RESTARTING";
+    Level.restartTimer = 0.4;
+    hero.vx = 0;
+    hero.vy = 0;
+    Sound.play("die");
+    camera.shake(rainbowExplosion ? 16 : 8, rainbowExplosion ? 0.6 : 0.35);
+
+    if (color === COLOR_INFO.red.color) {
+      Particles.titleBurst(hero.x + hero.w / 2, hero.y + hero.h / 2, 2, color);
+      return;
+    }
+
+    var count = rainbowExplosion ? 48 : 14;
+    for (var i = 0; i < count; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 180 + Math.random() * 320;
+      Particles.add(
+        hero.x + hero.w / 2,
+        rainbowExplosion ? hero.y + hero.h / 2 : hero.y + hero.h,
+        rainbowExplosion ? Math.cos(angle) * speed : (Math.random() * 2 - 1) * 150,
+        rainbowExplosion ? Math.sin(angle) * speed : -70 - Math.random() * 130,
+        (rainbowExplosion ? 0.7 : 0.35) + Math.random() * 0.3,
+        (rainbowExplosion ? 5 : 2) + Math.random() * (rainbowExplosion ? 5 : 4),
+        rainbowExplosion ? Particles.rainbow[i % Particles.rainbow.length] : color || "#ded8e0"
+      );
+    }
+  },
+
+  resetLevel: function (hero, levelIndex) {
+    Level.init(levelIndex);
+    hero.reset(64, 64);
+    Particles.items.length = 0;
+    camera.x = 0;
+    camera.y = 0;
+    camera.zoomSpeed = 0;
+    camera.zoom = CAMERA_ZOOM_IN;
+    camera.resize(camera.screenWidth, camera.screenHeight);
+  },
+
+  paintHooves: function (hero) {
+    var color = "#aaa5ad";
+    for (var name in COLOR_INFO) {
+      if (Level.isColorUnlocked(name)) color = name === "red" ? "#e63946" : COLOR_INFO[name].color;
+    }
+    for (var hoof = 0; hoof < 2; hoof++) {
+      var x = hero.x + 3 + hoof * 12;
+      var y = hero.y + hero.h;
+      var platform = Level.movingPlatforms.find(function (p) {
+        return Math.abs(p.y - y) < 1 && x + 2 >= p.x && x + 2 < p.x + p.w;
+      });
+      if (platform || Level.tileAt(Math.floor((x + 2) / TILE_SIZE), Math.floor((y + 1) / TILE_SIZE))) {
+        Level.hoofprints.push([platform ? x - platform.x : x, platform ? 0 : y, color, platform]);
+        if (Level.hoofprints.length > 80) Level.hoofprints.shift();
+      }
+    }
+  },
+
+  draw: function (ctx, camera) {
+    var cameraX = Math.round(camera.x);
+    var cameraY = Math.round(camera.y);
+    var seamOverlap = 1 / camera.zoom;
+    var startCol = Math.floor(camera.x / TILE_SIZE);
+    var endCol = Math.ceil((camera.x + camera.viewWidth) / TILE_SIZE);
+    var startRow = Math.floor(camera.y / TILE_SIZE);
+    var endRow = Math.ceil((camera.y + camera.viewHeight) / TILE_SIZE);
+
+    ctx.beginPath();
+    for (var row = startRow; row < endRow; row++) {
+      for (var col = startCol; col < endCol; col++) {
+        if (Level.tileAt(col, row) !== 1) continue;
+        ctx.rect(
+          col * TILE_SIZE - cameraX,
+          row * TILE_SIZE - cameraY,
+          TILE_SIZE + seamOverlap,
+          TILE_SIZE + seamOverlap
+        );
+      }
+    }
+    ctx.fillStyle = "#70452d";
+    ctx.fill();
+
+    // A tiny repeating dirt mark adds texture without needing tile artwork.
+    ctx.fillStyle = "#8d5b38";
+    for (var row = startRow; row < endRow; row++) {
+      for (var col = startCol; col < endCol; col++) {
+        if (Level.tileAt(col, row) !== 1) continue;
+        var x = col * TILE_SIZE - cameraX;
+        var y = row * TILE_SIZE - cameraY;
+        ctx.fillRect(x + 6 + ((row + col) & 1) * 12, y + 16, 4, 3);
+      }
+    }
+
+    // Only cap exposed ground, so walls and deep stacks remain readable dirt.
+    for (var row = startRow; row < endRow; row++) {
+      for (var col = startCol; col < endCol; col++) {
+        if (Level.tileAt(col, row) !== 1 || Level.baseTileAt(col, row - 1) !== 0) continue;
+        var x = col * TILE_SIZE - cameraX;
+        var y = row * TILE_SIZE - cameraY;
+        ctx.fillStyle = "#367a35";
+        ctx.fillRect(x, y + 5, TILE_SIZE + seamOverlap, 3);
+        ctx.fillStyle = "#67bd45";
+        ctx.fillRect(x, y, TILE_SIZE + seamOverlap, 5);
+        // Coordinate-based scatter stays fixed while the wind moves the tips.
+        var seed = Math.abs(Math.sin(col * 127.1 + row * 311.7 + Level.currentIndex * 74.7));
+        if (seed < 0.55) {
+          var wind = Math.sin(cloudTime * 2 + col * 0.45 + row * 0.2) * 3;
+          ctx.beginPath();
+          for (var blade = 0; blade < 3; blade++) {
+            var root = x + 7 + seed * 12 + blade * 5;
+            ctx.moveTo(root - 2, y + 2);
+            ctx.quadraticCurveTo(root, y - 4, root + wind + blade - 1, y - 6 - seed * 8 - blade % 2 * 3);
+            ctx.lineTo(root + 2, y + 2);
+          }
+          ctx.fill();
+          if (seed < 0.22) {
+            var flowerColor = Level.requiredColors[(col + row) % Level.requiredColors.length];
+            var flowerX = x + 18 + wind * 0.5;
+            ctx.fillStyle = "#367a35";
+            ctx.fillRect(flowerX, y - 9, 1, 11);
+            if (Level.isColorUnlocked(flowerColor)) {
+              ctx.fillStyle = COLOR_INFO[flowerColor].color;
+              ctx.fillRect(flowerX - 3, y - 11, 7, 3);
+              ctx.fillRect(flowerX - 1, y - 13, 3, 7);
+              ctx.fillStyle = "#fff3a3";
+              ctx.fillRect(flowerX, y - 10, 1, 1);
+            } else {
+              ctx.fillRect(flowerX - 1, y - 11, 3, 3);
+            }
+          }
+        }
+      }
+    }
+
+    Level.drawSpikes(ctx, cameraX, cameraY, startCol, endCol, startRow, endRow);
+    Level.drawColorTiles(
+      ctx,
+      cameraX,
+      cameraY,
+      startCol,
+      endCol,
+      startRow,
+      endRow,
+      "red",
+      seamOverlap
+    );
+    Level.drawColorTiles(
+      ctx,
+      cameraX,
+      cameraY,
+      startCol,
+      endCol,
+      startRow,
+      endRow,
+      "orange",
+      seamOverlap
+    );
+    Level.drawColorTiles(
+      ctx,
+      cameraX,
+      cameraY,
+      startCol,
+      endCol,
+      startRow,
+      endRow,
+      "yellow",
+      seamOverlap
+    );
+    Level.drawColorTiles(
+      ctx,
+      cameraX,
+      cameraY,
+      startCol,
+      endCol,
+      startRow,
+      endRow,
+      "green",
+      seamOverlap
+    );
+    Level.drawColorTiles(
+      ctx,
+      cameraX,
+      cameraY,
+      startCol,
+      endCol,
+      startRow,
+      endRow,
+      "indigo",
+      seamOverlap
+    );
+    Level.drawMovingPlatforms(ctx, cameraX, cameraY);
+    for (var print of Level.hoofprints) {
+      var px = print[0] + (print[3] ? print[3].x : 0);
+      var py = print[1] + (print[3] ? print[3].y : 0);
+      if (!print[3] && !Level.tileAt(Math.floor((px + 2) / TILE_SIZE), Math.floor((py + 1) / TILE_SIZE))) continue;
+      ctx.fillStyle = print[2];
+      ctx.fillRect(px - cameraX, py - cameraY, 5, 3);
+    }
+    Level.drawPortals(ctx, cameraX, cameraY);
+
+    Level.drawCrystals(ctx, cameraX, cameraY);
+    Level.drawDoor(ctx, cameraX, cameraY);
+  },
+
+  drawColorTiles: function (
+    ctx,
+    cameraX,
+    cameraY,
+    startCol,
+    endCol,
+    startRow,
+    endRow,
+    color,
+    seamOverlap
+  ) {
+    ctx.save();
+    var info = COLOR_INFO[color];
+    var unlocked = Level.isColorUnlocked(color);
+    var baseFilled = info.disappears ? !unlocked : unlocked;
+    for (var row = startRow; row < endRow; row++) {
+      for (var col = startCol; col < endCol; col++) {
+        if (Level.baseTileAt(col, row) !== info.tileId) continue;
+        var x = col * TILE_SIZE - cameraX;
+        var y = row * TILE_SIZE - cameraY;
+        var filled = baseFilled;
+        var state = null;
+        if (info.crumbles) {
+          state = Level.indigoTileStates[row * Level.cols + col];
+          if (state && state.phase === 2) filled = false;
+        }
+        ctx.globalAlpha = filled ? 1 : 0.2;
+        if (state && state.phase === 1) {
+          ctx.globalAlpha = 0.35 + (Math.sin(Level.time * 35) + 1) * 0.25;
+        } else if (state && state.phase === 2) {
+          ctx.globalAlpha = 0.06;
+        }
+        ctx.fillStyle = info.color;
+        ctx.fillRect(x, y, TILE_SIZE + seamOverlap, TILE_SIZE + seamOverlap);
+
+        // Shared candy-gem bevel and diagonal glint.
+        if (filled) {
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = info.highlight;
+          ctx.fillRect(x + 2, y + 2, TILE_SIZE - 4, 2);
+          ctx.fillRect(x + 2, y + 4, 2, TILE_SIZE - 6);
+          ctx.globalAlpha = 0.2;
+          ctx.fillStyle = "#17151f";
+          ctx.fillRect(x + 2, y + TILE_SIZE - 4, TILE_SIZE - 2, 4);
+          ctx.fillRect(x + TILE_SIZE - 4, y + 4, 4, TILE_SIZE - 8);
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.moveTo(x + 20, y + 5);
+          ctx.lineTo(x + 27, y + 5);
+          ctx.lineTo(x + 13, y + 19);
+          ctx.lineTo(x + 8, y + 19);
+          ctx.fill();
+        }
+
+        // Each colour keeps a readable symbol for its mechanic.
+        ctx.globalAlpha = state && state.phase === 2 ? 0.08 : filled ? 0.75 : 0.32;
+        ctx.strokeStyle = info.highlight;
+        ctx.fillStyle = info.highlight;
+        ctx.lineWidth = 2;
+        if (color === "red") {
+          ctx.beginPath();
+          ctx.moveTo(x + 5, y + 26);
+          ctx.lineTo(x + 15, y + 7);
+          ctx.moveTo(x + 16, y + 26);
+          ctx.lineTo(x + 26, y + 7);
+          ctx.stroke();
+        } else if (color === "orange") {
+          ctx.beginPath();
+          ctx.moveTo(x + 6, y + 9);
+          ctx.lineTo(x + 13, y + 16);
+          ctx.lineTo(x + 6, y + 23);
+          ctx.moveTo(x + 17, y + 9);
+          ctx.lineTo(x + 24, y + 16);
+          ctx.lineTo(x + 17, y + 23);
+          ctx.stroke();
+        } else if (color === "yellow") {
+          ctx.fillRect(x + 7, y + 7, 6, 6);
+          ctx.fillRect(x + 19, y + 7, 6, 6);
+          ctx.fillRect(x + 13, y + 13, 6, 6);
+          ctx.fillRect(x + 7, y + 19, 6, 6);
+          ctx.fillRect(x + 19, y + 19, 6, 6);
+        } else if (info.bounces) {
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = info.highlight;
+          ctx.beginPath();
+          ctx.moveTo(x + 8, y + 20);
+          ctx.lineTo(x + 16, y + 11);
+          ctx.lineTo(x + 24, y + 20);
+          ctx.stroke();
+        } else if (info.crumbles) {
+          if (state && state.phase === 1) ctx.globalAlpha = 1;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 8, y + 3);
+          ctx.lineTo(x + 14, y + 12);
+          ctx.lineTo(x + 10, y + 19);
+          ctx.lineTo(x + 18, y + 29);
+          ctx.moveTo(x + 14, y + 12);
+          ctx.lineTo(x + 24, y + 8);
+          ctx.lineTo(x + 21, y + 19);
+          ctx.stroke();
+        }
+
+        if (!filled) {
+          ctx.globalAlpha = state && state.phase === 2 ? 0.08 : 0.55;
+          ctx.strokeStyle = info.highlight;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+          ctx.setLineDash([]);
+        }
+      }
+    }
+    ctx.restore();
+  },
+
+  drawSpikes: function (ctx, cameraX, cameraY, startCol, endCol, startRow, endRow) {
+    ctx.save();
+    for (var row = startRow; row < endRow; row++) {
+      for (var col = startCol; col < endCol; col++) {
+        if (Level.tileAt(col, row) !== 3) continue;
+        var x = col * TILE_SIZE - cameraX;
+        var y = row * TILE_SIZE - cameraY;
+        var half = TILE_SIZE / 2;
+
+        ctx.fillStyle = "#393044";
+        ctx.fillRect(x, y + half, TILE_SIZE, half);
+        ctx.fillStyle = "#62536f";
+        ctx.fillRect(x, y + half + 2, TILE_SIZE, 3);
+        ctx.fillStyle = "#241e30";
+        ctx.fillRect(x, y + TILE_SIZE - 3, TILE_SIZE, 3);
+
+        // Inset crystal facets keep the outline inside the original silhouette.
+        for (var spike = 0; spike < 2; spike++) {
+          var left = x + spike * half;
+          var tip = left + half / 2;
+          ctx.fillStyle = "#393044";
+          ctx.beginPath();
+          ctx.moveTo(left, y + half);
+          ctx.lineTo(tip, y);
+          ctx.lineTo(left + half, y + half);
+          ctx.fill();
+          ctx.fillStyle = "#f4f0ff";
+          ctx.beginPath();
+          ctx.moveTo(left + 2, y + half - 1);
+          ctx.lineTo(tip, y + 3);
+          ctx.lineTo(tip, y + half - 1);
+          ctx.fill();
+          ctx.fillStyle = "#b5a3c7";
+          ctx.beginPath();
+          ctx.moveTo(tip, y + 3);
+          ctx.lineTo(left + half - 2, y + half - 1);
+          ctx.lineTo(tip, y + half - 1);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+  },
+
+  drawMovingPlatforms: function (ctx, cameraX, cameraY) {
+    for (var i = 0; i < Level.movingPlatforms.length; i++) {
+      var platform = Level.movingPlatforms[i];
+      var x = Math.round(platform.x) - cameraX;
+      var y = Math.round(platform.y) - cameraY;
+
+      ctx.save();
+      ctx.fillStyle = Level.orangeUnlocked ? "#93451f" : "#514638";
+      ctx.fillRect(x, y, platform.w, platform.h);
+      ctx.fillStyle = Level.orangeUnlocked ? COLOR_INFO.orange.color : "#76614d";
+      ctx.fillRect(x, y, platform.w, 5);
+      ctx.fillStyle = Level.orangeUnlocked ? COLOR_INFO.orange.highlight : "#a68b70";
+      ctx.fillRect(x + 2, y, platform.w - 4, 2);
+      ctx.fillStyle = Level.orangeUnlocked ? "#61301f" : "#37302b";
+      ctx.fillRect(x, y + platform.h - 3, platform.w, 3);
+      ctx.restore();
+    }
+  },
+
+  drawPortals: function (ctx, cameraX, cameraY) {
+    for (var i = 0; i < Level.portals.length; i++) {
+      var portal = Level.portals[i];
+      var x = portal.x + portal.w / 2 - cameraX;
+      var y = portal.y + portal.h / 2 - cameraY;
+      var vertical = portal.nx !== 0;
+      var pulse = 1 + Math.sin(Level.time * 7 + i * Math.PI) * 0.12;
+
+      ctx.save();
+      ctx.globalAlpha = Level.blueUnlocked ? 1 : 0.25;
+      ctx.strokeStyle = COLOR_INFO.blue.color;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(
+        x,
+        y,
+        (vertical ? 5 : 13) * pulse,
+        (vertical ? 13 : 5) * pulse,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+      ctx.strokeStyle = COLOR_INFO.blue.highlight;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y, vertical ? 4 : 11, vertical ? 11 : 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (Level.blueUnlocked) {
+        ctx.fillStyle = COLOR_INFO.blue.highlight;
+        for (var wisp = 0; wisp < 5; wisp++) {
+          var phase = (Level.time * 0.55 + wisp / 5 + i * 0.17) % 1;
+          for (var tail = 0; tail < 3; tail++) {
+            var radius = (1 - phase) * 24 + tail;
+            var angle = phase * Math.PI * 4 + wisp * 2 - tail * 0.15;
+            ctx.globalAlpha = Math.sin(phase * Math.PI) * (0.65 - tail * 0.2);
+            ctx.fillRect(x + Math.cos(angle) * radius * (vertical ? 0.6 : 1) - 1,
+              y + Math.sin(angle) * radius * (vertical ? 1 : 0.6) - 1, 2, 2);
+          }
+        }
+      }
+      ctx.restore();
+    }
+  },
+
+  drawCrystals: function (ctx, cameraX, cameraY) {
+    for (var i = 0; i < Level.crystals.length; i++) {
+      var crystal = Level.crystals[i];
+      if (Level.isColorUnlocked(crystal.color)) continue;
+      Level.drawCrystal(ctx, cameraX, cameraY, crystal);
+    }
+  },
+
+  drawCrystal: function (ctx, cameraX, cameraY, crystal) {
+    var info = COLOR_INFO[crystal.color];
+    var x = crystal.x + crystal.w / 2 - cameraX;
+    var y = crystal.y + crystal.h / 2 - cameraY + Math.sin(Level.time * 4) * 3;
+    var pulse = 8 + Math.sin(Level.time * 5) * 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = info.color;
+    ctx.beginPath();
+    ctx.arc(x, y, pulse + 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = info.color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 12);
+    ctx.lineTo(x + 9, y);
+    ctx.lineTo(x, y + 12);
+    ctx.lineTo(x - 9, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = info.highlight;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 8);
+    ctx.lineTo(x + 3, y - 1);
+    ctx.lineTo(x - 2, y + 3);
+    ctx.closePath();
+    ctx.fill();
+    // Staggered glints orbit each crystal without allocating particles.
+    for (var glint = 0; glint < 3; glint++) {
+      var phase = Level.time * 2 + crystal.x * 0.1 + crystal.y * 0.07 + glint * 2.1;
+      var sparkle = Math.pow(Math.max(0, Math.sin(phase * 2)), 4);
+      var sx = x + Math.cos(phase * 0.5 + glint * 2) * 18;
+      var sy = y + Math.sin(phase * 0.5 + glint * 2) * 21;
+      ctx.globalAlpha = sparkle;
+      ctx.fillRect(sx - 3 * sparkle, sy - 0.5, 6 * sparkle, 1);
+      ctx.fillRect(sx - 0.5, sy - 3 * sparkle, 1, 6 * sparkle);
+    }
+    ctx.restore();
+  },
+
+  drawDoor: function (ctx, cameraX, cameraY) {
+    if (!Level.door) return;
+    var door = Level.door;
+    var x = door.x - cameraX;
+    var y = door.y - cameraY;
+    var open = Level.hasRequiredColors();
+    var exitColor = COLOR_INFO[Level.requiredColors[Level.requiredColors.length - 1] || "violet"];
+
+    ctx.save();
+    if (open) {
+      var glow = ctx.createRadialGradient(x + door.w / 2, y + door.h / 2, 0,
+        x + door.w / 2, y + door.h / 2, door.h);
+      glow.addColorStop(0, "rgba(255,240,210,0.3)");
+      glow.addColorStop(1, "rgba(255,240,210,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(x - door.h, y - door.h / 2, door.w + door.h * 2, door.h * 2);
+    }
+    ctx.fillStyle = open ? exitColor.color : "#615965";
+    ctx.fillRect(x, y + 8, door.w, door.h - 8);
+    ctx.beginPath();
+    ctx.arc(x + door.w / 2, y + 9, door.w / 2, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#17151f";
+    ctx.fillRect(x + 5, y + 15, door.w - 10, door.h - 15);
+    ctx.fillStyle = open ? exitColor.highlight : "#8f8792";
+    ctx.fillRect(x + door.w - 7, y + 36, 3, 3);
+    if (open) {
+      for (var spark = 0; spark < 14; spark++) {
+        var rise = (Level.time * 0.4 + spark / 14) % 1;
+        var sparkX = x + door.w / 2 + Math.sin(spark * 2.4 + rise * 3) * (door.w / 2 + 8);
+        var sparkY = y + door.h - rise * (door.h + 14);
+        ctx.globalAlpha = Math.sin(rise * Math.PI);
+        ctx.fillStyle = Particles.rainbow[spark % 7];
+        ctx.fillRect(sparkX - 2, sparkY - 2, 4, 4);
+      }
+    }
+    ctx.restore();
+  },
+
+  formatRunTime: function (time) {
+    var totalTenths = Math.floor((time === undefined ? Level.runTimer : time) * 10);
+    var minutes = Math.floor(totalTenths / 600);
+    var seconds = ((totalTenths % 600) / 10).toFixed(1);
+    return minutes + ":" + (seconds.length < 4 ? "0" : "") + seconds;
+  },
+
+  drawHud: function (ctx, width, height) {
+    // Narrow (portrait) views stack the objective above the timer instead of
+    // squeezing all three items onto a single line.
+    var narrow = width < 700;
+    var right = width - 16 - HUD_RIGHT_INSET;
+    var statsY = narrow ? 50 : 26;
+    ctx.save();
+    ctx.font = "bold 15px monospace";
+    ctx.fillStyle = "#f0e9ee";
+    ctx.strokeStyle = "#17151f";
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+
+    function outlined(text, x, y) {
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+    }
+
+    ctx.textAlign = "left";
+    outlined("TIME " + Level.formatRunTime(), 16, statsY);
+    ctx.textAlign = "right";
+    outlined("DEATHS " + Level.deathCount, right, statsY);
+    if (bestRun) {
+      ctx.fillStyle = "#b8b7ff";
+      outlined("BEST DEATHS " + bestRun[1], right, statsY + 20);
+      ctx.textAlign = "left";
+      outlined("BEST " + Level.formatRunTime(bestRun[0]), 16, statsY + 20);
+      ctx.fillStyle = "#f0e9ee";
+    }
+    ctx.textAlign = "center";
+
+    var nextColor = null;
+    for (var i = 0; i < Level.requiredColors.length; i++) {
+      if (!Level.isColorUnlocked(Level.requiredColors[i])) {
+        nextColor = Level.requiredColors[i];
+        break;
+      }
+    }
+
+    var message;
+    if (nextColor) {
+      message = "FIND THE " + nextColor.toUpperCase() + " CRYSTAL";
+      if (nextColor !== "red") ctx.fillStyle = COLOR_INFO[nextColor].color;
+    } else {
+      message = "COLOURS RESTORED - REACH THE DOOR";
+      ctx.fillStyle = COLOR_INFO[Level.requiredColors[Level.requiredColors.length - 1] || "violet"].color;
+    }
+    if (Level.violetUnlocked && !Level.failed) {
+      message = "REACH THE DOOR - " + Level.violetTimer.toFixed(1) + "s";
+    }
+    if (!Level.currentIndex && Level.time < 6) message = "YOU CAN DOUBLE JUMP!";
+    if (Level.currentIndex === 3 && Level.time < 6) message = "YOU CAN WALL JUMP!";
+    if (Level.failed) message = Level.failureMessage;
+    message = "LEVEL " + (Level.currentIndex + 1) + "  -  " + message;
+    if (!Level.complete) {
+      // Leave room for the mute button in the top-right corner.
+      var centerX = (16 + right) / 2;
+      if (ctx.measureText(message).width > right - 16) ctx.font = "bold 13px monospace";
+      outlined(message, centerX, 26);
+      ctx.font = "bold 15px monospace";
+    }
+
+    if (Level.violetUnlocked && !Level.failed && !Level.complete && !Level.gameComplete) {
+      var urgent = Level.violetTimer <= 3;
+      var countdownColor = urgent ? "#ff5268" : "#e4b5fa";
+      var boxY = narrow ? 86 : 46;
+      var boxW = Math.min(340, width - 24);
+      ctx.save();
+      ctx.fillStyle = "rgba(16, 8, 30, 0.9)";
+      ctx.fillRect(width / 2 - boxW / 2, boxY, boxW, 112);
+      ctx.strokeStyle = countdownColor;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(width / 2 - boxW / 2, boxY, boxW, 112);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 16px monospace";
+      ctx.fillText("REACH THE DOOR BEFORE IT EXPLODES!", width / 2, boxY + 23);
+      ctx.fillStyle = countdownColor;
+      ctx.font = "bold " + (urgent ? 48 + Math.sin(Level.time * 16) * 3 : 48) + "px monospace";
+      ctx.fillText(Level.violetTimer.toFixed(1) + "s", width / 2, boxY + 76);
+      ctx.fillStyle = "#493453";
+      ctx.fillRect(width / 2 - boxW / 2 + 16, boxY + 92, boxW - 32, 8);
+      ctx.fillStyle = countdownColor;
+      ctx.fillRect(width / 2 - boxW / 2 + 16, boxY + 92, (boxW - 32) * clamp(Level.violetTimer / VIOLET_EXPLOSION_TIME, 0, 1), 8);
+      ctx.restore();
+    }
+
+    if (Level.complete) {
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = COLOR_INFO[Level.requiredColors[Level.requiredColors.length - 1] || "violet"].color;
+      ctx.fillRect(0, 0, width, height);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  },
+};

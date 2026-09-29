@@ -1,0 +1,25 @@
+ISC License
+
+Copyright (c) 2026 Ryan Tyler (tyler6699)
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+The original project (github.com/js13kGames/huecorn) declares the ISC
+license in its package.json. This adapted version for PewPlay adds a
+responsive layout, reworked touch controls and a mute option.
+
+-------------------------------------------------------------------------------
+Third-party code: js/song.js contains the SoundBox music player
+Copyright (c) 2011-2013 Marcus Geelnard, released under the zlib license
+(full notice kept in that file). The player was adapted by the original
+author to render directly into a Web Audio buffer.

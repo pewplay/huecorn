@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Huecorn</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="title-screen">
+  <div id="stage">
+    <canvas id="c" aria-label="Huecorn game"></canvas>
+  </div>
+  <button id="mute" type="button" aria-label="Mute sound" title="Mute (M)">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path class="speaker" d="M4 9h4l5-4v14l-5-4H4z"/>
+      <path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>
+      <path class="cross" d="M16 9l6 6M22 9l-6 6"/>
+    </svg>
+  </button>
+  <div id="touch-controls" aria-hidden="true">
+    <div id="dpad">
+      <div class="pad-button" data-dir="-1"><svg viewBox="0 0 24 24"><path d="M15 5L7 12l8 7z"/></svg></div>
+      <div class="pad-button" data-dir="1"><svg viewBox="0 0 24 24"><path d="M9 5l8 7-8 7z"/></svg></div>
+    </div>
+    <div id="jump" class="pad-button">JUMP</div>
+  </div>
+
+  <!-- Load order matters: each file defines globals used by the next. -->
+  <script src="js/keys.js"></script>
+  <script src="js/utility.js"></script>
+  <script src="js/tile.js"></script>
+  <script src="js/song.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/level.js"></script>
+  <script src="js/entity.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/hero.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/game.js"></script>
+  <script>startGame();</script>
+</body>
+</html>

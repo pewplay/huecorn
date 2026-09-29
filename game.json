@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pewplay/pewplay/main/schema/game.schema.json",
+  "title": "Huecorn",
+  "description": "Guide a unicorn through seven rainbow platforming levels, collecting colour crystals that reshape the world. Free to play in your browser.",
+  "about": "Huecorn is a fast, momentum-driven platformer about bringing colour back to a grey world. Each level hides crystals of the rainbow, and every crystal you grab changes the rules: red blocks turn solid, orange platforms start moving, yellow floors vanish, green pads launch you sky-high, blue portals fling you across the map and indigo blocks crumble under your hooves.\n\nThe fun comes from how tight the movement feels. You can double jump with a somersault, slide down and kick off walls, and carry your speed through portals and bounce pads while a rainbow trail follows you. The final violet crystal is unstable: once you pick it up, you have ten seconds to reach the door before it explodes. A run timer and death counter push you to beat your best.\n\nOriginally created by Ryan Tyler for js13kGames 2026.",
+  "howToPlay": "Collect the crystals in the order shown at the top of the screen; each one activates its colour's blocks or gadgets. Once every colour of the level is restored, the door opens and you can walk through it. Touching spikes or falling restarts the level, and after the violet crystal you must reach the door before the countdown ends.",
+  "controls": [
+    { "input": "Arrow keys / A, D", "action": "Run left and right" },
+    { "input": "Space / W / Up arrow", "action": "Jump, double jump and wall jump" },
+    { "input": "M", "action": "Mute or unmute sound" },
+    { "input": "On-screen buttons", "action": "Run with the arrows, jump with JUMP on touch screens" }
+  ],
+  "tips": [
+    "Release jump early for a short hop and hold it for full height.",
+    "Jumping off a wall refreshes your double jump, so you can climb narrow shafts by bouncing between walls.",
+    "Land on a green pad from above to get a huge launch that also restores your double jump.",
+    "Portals keep your speed, so build momentum before diving in to fly further out of the other side."
+  ],
+  "faq": [
+    { "question": "Is Huecorn free to play?", "answer": "Yes, Huecorn is completely free and runs in your browser with no download or sign-up." },
+    { "question": "Can I play Huecorn on a phone or tablet?", "answer": "Yes, touch screens get on-screen arrow and JUMP buttons, and you can hold JUMP with one thumb while tapping again for a double jump. Landscape gives you the widest view of each level." },
+    { "question": "How many levels does Huecorn have?", "answer": "There are seven hand-made levels, each adding a new colour mechanic, ending with the violet crystal's ten-second countdown." }
+  ],
+  "category": "Action",
+  "tags": ["platformer", "unicorn", "rainbow", "wall jump", "speedrun", "js13k"],
+  "author": "Ryan Tyler",
+  "playMode": "SinglePlayer",
+  "orientation": "any",
+  "cover": "cover.png",
+  "screenshots": ["screenshots/1.png", "screenshots/2.png", "screenshots/3.png"],
+  "added": "2026-09-28",
+  "draft": false
+}
